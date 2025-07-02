@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Faker\Factory as Faker;
 
 class DashboardDataSeeder extends Seeder
 {
@@ -13,64 +14,74 @@ class DashboardDataSeeder extends Seeder
      */
     public function run(): void
     {
+        $faker = Faker::create();
+        
         // Clear existing data
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('distance')->truncate();
         DB::table('engine_hours')->truncate();
         DB::table('activity_breakdown')->truncate();
         DB::table('messages_received')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Generate data for the last 50 days
-        $now = Carbon::now();
+        // Activity types and message types
         $activityTypes = ['Driving', 'Idle', 'Working', 'Off', 'Maintenance'];
-        $messageTypes = ['Alert', 'Warning', 'Info', 'Error', 'Status'];
-
-        for ($i = 0; $i < 50; $i++) {
-            $date = $now->copy()->subDays(49 - $i);
+        $messageTypes = ['alert', 'notification'];
+        
+        // Generate data for the last 100 days
+        $now = Carbon::now();
+        
+        // Generate 100 records for each table
+        for ($i = 0; $i < 100; $i++) {
+            $date = $now->copy()->subDays(99 - $i);
             
-            // Distance data
+            // 1. Distance data - matches migration: date, value
             DB::table('distance')->insert([
                 'date' => $date->format('Y-m-d'),
-                'value' => rand(50, 500), // Random distance between 50-500
+                'value' => $faker->numberBetween(50, 500), // km
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            // Engine hours data
+            // 2. Engine hours data - matches migration: date, hours
             DB::table('engine_hours')->insert([
                 'date' => $date->format('Y-m-d'),
-                'hours' => round(rand(500, 1200) / 10, 1), // Random hours between 50.0-120.0
+                'hours' => $faker->randomFloat(2, 0.5, 12.0), // hours (2 decimal places)
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-
-            // Activity breakdown data
+            
+            // 3. Activity breakdown data
             $totalPercentage = 0;
             $activityCount = count($activityTypes);
             
+            // Generate 5 activity records per day
             for ($j = 0; $j < $activityCount; $j++) {
                 $percentage = $j === $activityCount - 1 
                     ? 100 - $totalPercentage 
-                    : rand(5, min(50, 100 - $totalPercentage - (($activityCount - $j - 1) * 5)));
+                    : rand(5, min(100 - $totalPercentage - ($activityCount - $j - 1) * 5, 70));
                 
                 $totalPercentage += $percentage;
                 
                 DB::table('activity_breakdown')->insert([
-                    'activity_type' => $activityTypes[$j],
-                    'hours' => round(($percentage / 100) * 24, 2), // Convert percentage to hours in a day
-                    'percentage' => $percentage,
                     'date' => $date->format('Y-m-d'),
+                    'activity_type' => $activityTypes[$j],
+                    'hours' => round(($percentage / 100) * 24, 2),
+                    'percentage' => $percentage,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
 
-            // Messages received data
-            $messageCount = rand(5, 50);
+            // 4. Messages received data - matches migration: date, count, message_type, details
+            $messageCount = $faker->numberBetween(5, 20);
+            $messageType = $faker->randomElement(['Alert', 'Warning', 'Info', 'Error', 'Status']);
+            
             DB::table('messages_received')->insert([
                 'date' => $date->format('Y-m-d'),
                 'count' => $messageCount,
-                'message_type' => $messageTypes[array_rand($messageTypes)],
-                'details' => "Generated $messageCount messages for " . $date->format('Y-m-d'),
+                'message_type' => $messageType,
+                'details' => "$messageCount $messageType messages received on " . $date->format('Y-m-d'),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
