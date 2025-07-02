@@ -18,10 +18,22 @@ class DistanceController extends Controller
     public function index(Request $request)
     {
         try {
+            $validator = Validator::make($request->all(), [
+                'start_date' => ['nullable', 'date'],
+                'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
             $query = Distance::query();
             
             // Filter by date range if provided
-            if ($request->has(['start_date', 'end_date'])) {
+            if ($request->has('start_date') && $request->has('end_date')) {
                 $query->whereBetween('date', [
                     $request->start_date,
                     $request->end_date
